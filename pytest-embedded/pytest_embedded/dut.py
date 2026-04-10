@@ -9,8 +9,8 @@ from typing import AnyStr
 import pexpect
 
 from .app import App
-from .log import MessageQueue, PexpectProcess
 from .group import DutGroup
+from .log import MessageQueue, PexpectProcess
 from .unity import UNITY_SUMMARY_LINE_REGEX, TestSuite
 from .utils import Meta, _InjectMixinCls, remove_asci_color_code, to_bytes, to_list
 

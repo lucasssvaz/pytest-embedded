@@ -46,6 +46,7 @@ class DutGroupMemberError(Exception):
 # DutGroup class
 # ---------------------------------------------------------------------------
 
+
 class DutGroup:
     """Transparent proxy that forwards method calls to every wrapped
     :class:`~pytest_embedded.dut.Dut` **in parallel**.
@@ -129,8 +130,8 @@ class DutGroup:
         gn = self._group_name
         name = self._names[member_index]
         if gn:
-            return f"DutGroup {gn!r} member {name!r} (index {member_index})"
-        return f"DutGroup member {name!r} (index {member_index})"
+            return f'DutGroup {gn!r} member {name!r} (index {member_index})'
+        return f'DutGroup member {name!r} (index {member_index})'
 
     def _wrap_member_failure(
         self,
@@ -168,10 +169,7 @@ class DutGroup:
 
         results: list[Any] = [None] * n
         executor = ThreadPoolExecutor(max_workers=n)
-        future_to_idx = {
-            executor.submit(callables[i], *args_per_call[i], **kwargs_per_call[i]): i
-            for i in range(n)
-        }
+        future_to_idx = {executor.submit(callables[i], *args_per_call[i], **kwargs_per_call[i]): i for i in range(n)}
         failed_early = False
         try:
             for fut in as_completed(future_to_idx):
@@ -205,9 +203,7 @@ class DutGroup:
         elif len(patterns) == n:
             args_list = [(p,) for p in patterns]
         else:
-            raise ValueError(
-                f'Expected 1 (broadcast) or {n} (per-DUT) patterns, got {len(patterns)}'
-            )
+            raise ValueError(f'Expected 1 (broadcast) or {n} (per-DUT) patterns, got {len(patterns)}')
 
         kwargs_list = [dict(kwargs) for _ in range(n)]
         return self._run_parallel(methods, args_list, kwargs_list, operation=method_name)
@@ -250,9 +246,7 @@ class DutGroup:
             try:
                 attrs.append(getattr(dut, name))
             except AttributeError:
-                raise AttributeError(
-                    f"'{type(dut).__name__}' object has no attribute '{name}'"
-                ) from None
+                raise AttributeError(f"'{type(dut).__name__}' object has no attribute '{name}'") from None
 
         if not all(callable(a) for a in attrs):
             return attrs

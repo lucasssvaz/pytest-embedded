@@ -186,14 +186,14 @@ As with the :func:`~pytest_embedded.dut.Dut.expect` function, the ``pattern`` ar
        for _ in range(2):
            dut.expect_exact(pattern_list)
 
-*****************************
+***************************
  Multi-DUT Synchronization
-*****************************
+***************************
 
 When you use ``--count N`` (or equivalent), each board has its own serial stream and its own :class:`~pytest_embedded.dut.Dut` instance. Waiting for readiness on each device with separate ``expect`` calls works, but:
 
-- Sequential calls use **per-call** timeouts, so two ``expect_exact(..., timeout=120)`` lines can behave like a much larger wall-clock budget than a single 120s deadline.
-- The **slowest** device should not delay matching on others more than your chosen global timeout.
+-  Sequential calls use **per-call** timeouts, so two ``expect_exact(..., timeout=120)`` lines can behave like a much larger wall-clock budget than a single 120s deadline.
+-  The **slowest** device should not delay matching on others more than your chosen global timeout.
 
 :class:`~pytest_embedded.group.DutGroup`
 ========================================
@@ -214,8 +214,7 @@ It is also available as ``Dut.DutGroup`` for discoverability.
 expect / expect_exact
 ---------------------
 
-``expect`` and ``expect_exact`` support both **broadcast** (one pattern for all
-DUTs) and **per-DUT** patterns (N patterns for N DUTs), all running in parallel:
+``expect`` and ``expect_exact`` support both **broadcast** (one pattern for all DUTs) and **per-DUT** patterns (N patterns for N DUTs), all running in parallel:
 
 .. code:: python
 
@@ -236,8 +235,7 @@ DUTs) and **per-DUT** patterns (N patterns for N DUTs), all running in parallel:
 Other methods
 -------------
 
-Any other :class:`~pytest_embedded.dut.Dut` method called on the group is
-forwarded with the **same arguments** to every DUT in parallel:
+Any other :class:`~pytest_embedded.dut.Dut` method called on the group is forwarded with the **same arguments** to every DUT in parallel:
 
 .. code:: python
 
