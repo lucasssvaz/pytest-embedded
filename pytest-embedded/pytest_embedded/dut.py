@@ -10,6 +10,7 @@ import pexpect
 
 from .app import App
 from .log import MessageQueue, PexpectProcess
+from .group import DutGroup
 from .unity import UNITY_SUMMARY_LINE_REGEX, TestSuite
 from .utils import Meta, _InjectMixinCls, remove_asci_color_code, to_bytes, to_list
 
@@ -48,6 +49,9 @@ class Dut(_InjectMixinCls):
 
         # junit related
         self.testsuite = TestSuite(self.test_case_name)
+
+    #: Alias for :class:`~pytest_embedded.group.DutGroup` for discoverability.
+    DutGroup = DutGroup
 
     @property
     def logdir(self):
