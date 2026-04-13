@@ -50,8 +50,7 @@ class Dut(_InjectMixinCls):
         # junit related
         self.testsuite = TestSuite(self.test_case_name)
 
-    #: Alias for :class:`~pytest_embedded.group.DutGroup` for discoverability.
-    DutGroup = DutGroup
+
 
     @property
     def logdir(self):
@@ -236,3 +235,7 @@ class Dut(_InjectMixinCls):
             requires enable service ``idf``
         """
         pass
+
+
+#: Alias for :class:`~pytest_embedded.group.DutGroup` for discoverability.
+Dut.DutGroup = DutGroup
