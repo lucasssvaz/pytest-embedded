@@ -30,6 +30,7 @@ from .app import App
 from .dut import Dut
 from .dut_factory import (
     DutFactory,
+    _ctx,
     _fixture_classes_and_options_fn,
     _listener_gn,
     _pexpect_fr_gn,
@@ -708,7 +709,7 @@ def _stdout_lock():
     ensuring every listener process receives a valid lock reference regardless
     of test ordering.
     """
-    lock = multiprocessing.Lock()
+    lock = _ctx.Lock()
     set_stdout_lock(lock)
     yield lock
 

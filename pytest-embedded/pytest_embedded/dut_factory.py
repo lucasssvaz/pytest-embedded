@@ -55,6 +55,7 @@ def _listen(
     q: MessageQueue, filepath: str, with_timestamp: bool = True, count: int = 1, total: int = 1, _stdout_lock=None
 ) -> None:
     shall_add_prefix = True
+    _pending = ''
     while True:
         msg = q.get()
         if not msg:
@@ -78,17 +79,18 @@ def _listen(
         if shall_add_prefix:
             _s = prefix + _s
 
-        _s = _s.replace('\r\n', '\n')  # remove extra \r. since multi-dut \r would mess up the log
-        if _s.endswith('\n'):  # complete line
+        _s = _s.replace('\r\n', '\n')
+        if _s.endswith('\n'):
             shall_add_prefix = True
             _s = _s[:-1].replace('\n', '\n' + prefix) + '\n'
+            with _stdout_lock if _stdout_lock else contextlib.nullcontext():
+                _stdout.write(_pending + _s)
+                _stdout.flush()
+            _pending = ''
         else:
             shall_add_prefix = False
             _s = _s.replace('\n', '\n' + prefix)
-
-        with _stdout_lock if _stdout_lock else contextlib.nullcontext():
-            _stdout.write(_s)
-            _stdout.flush()
+            _pending += _s
 
 
 def _listener_gn(
