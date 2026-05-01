@@ -708,11 +708,9 @@ def _stdout_lock():
     ensuring every listener process receives a valid lock reference regardless
     of test ordering.
     """
-    manager = multiprocessing.Manager()
-    lock = manager.Lock()
+    lock = multiprocessing.Lock()
     set_stdout_lock(lock)
     yield lock
-    manager.shutdown()
 
 
 @pytest.fixture
