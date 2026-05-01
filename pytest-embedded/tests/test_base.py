@@ -874,6 +874,7 @@ def test_listen_no_data_loss_without_lock(tmp_path):
     finally:
         p.terminate()
         p.join(timeout=5)
+        assert p.exitcode is not None, 'listener process did not terminate'
 
     content = open(logfile, 'rb').read()
     for msg in messages:
@@ -917,6 +918,7 @@ def test_listen_no_data_loss_with_lock(tmp_path):
         finally:
             p.terminate()
             p.join(timeout=5)
+            assert p.exitcode is not None, 'listener process did not terminate'
     finally:
         manager.shutdown()
 
@@ -956,7 +958,7 @@ def test_stdout_lock_concurrent_no_data_loss(tmp_path):
         p0.start()
         p1.start()
         try:
-            # interleave writes from both DUTs to maximise lock contention
+            # interleave writes from both DUTs to maximize lock contention
             for msg0, msg1 in zip(messages0, messages1):
                 q0.put(msg0)
                 q1.put(msg1)
@@ -976,6 +978,8 @@ def test_stdout_lock_concurrent_no_data_loss(tmp_path):
             p1.terminate()
             p0.join(timeout=5)
             p1.join(timeout=5)
+            assert p0.exitcode is not None, 'dut0 listener process did not terminate'
+            assert p1.exitcode is not None, 'dut1 listener process did not terminate'
     finally:
         manager.shutdown()
 

@@ -702,6 +702,11 @@ def _stdout_lock():
     A session-scoped multiprocessing lock used to serialize stdout writes across
     all DUT listener processes, preventing garbled output when multiple DUTs
     print to stdout simultaneously.
+
+    It is marked ``autouse=True`` so that the lock is created and registered
+    globally (via ``set_stdout_lock``) before any DUT fixture is instantiated,
+    ensuring every listener process receives a valid lock reference regardless
+    of test ordering.
     """
     manager = multiprocessing.Manager()
     lock = manager.Lock()
