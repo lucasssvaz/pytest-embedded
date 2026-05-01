@@ -1,3 +1,4 @@
+import contextlib
 import datetime
 import gc
 import io
@@ -83,11 +84,7 @@ def _listen(q: MessageQueue, filepath: str, with_timestamp: bool = True, count: 
             shall_add_prefix = False
             _s = _s.replace('\n', '\n' + prefix)
 
-        if _stdout_lock:
-            with _stdout_lock:
-                _stdout.write(_s)
-                _stdout.flush()
-        else:
+        with _stdout_lock if _stdout_lock else contextlib.nullcontext():
             _stdout.write(_s)
             _stdout.flush()
 
