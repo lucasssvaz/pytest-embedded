@@ -41,6 +41,7 @@ from .dut_factory import (
     qemu_gn,
     serial_gn,
     set_parametrized_fixtures_cache,
+    set_stdout_lock,
     wokwi_gn,
 )
 from .log import MessageQueue, MessageQueueManager, PexpectProcess
@@ -695,6 +696,20 @@ def _mp_manager():
     manager.shutdown()
 
 
+@pytest.fixture(scope='session', autouse=True)
+def _stdout_lock():
+    """
+    A session-scoped multiprocessing lock used to serialize stdout writes across
+    all DUT listener processes, preventing garbled output when multiple DUTs
+    print to stdout simultaneously.
+    """
+    manager = multiprocessing.Manager()
+    lock = manager.Lock()
+    set_stdout_lock(lock)
+    yield lock
+    manager.shutdown()
+
+
 @pytest.fixture
 def test_case_tempdir(test_case_name: str, session_tempdir: str) -> str:
     """Function scoped temp dir for pytest-embedded"""
@@ -746,13 +761,15 @@ def with_timestamp(request: FixtureRequest) -> bool:
 
 @pytest.fixture
 @multi_dut_generator_fixture
-def _listener(msg_queue, _pexpect_logfile, with_timestamp, dut_index, dut_total) -> multiprocessing.Process:
+def _listener(msg_queue, _pexpect_logfile, with_timestamp, dut_index, dut_total, _stdout_lock) -> multiprocessing.Process:
     """
     The listener would create a `_listen` process. The `_listen` process would get the string from the message queue,
     and do two things together:
 
     1. print the string to `sys.stdout`
     2. write the string to `_pexpect_logfile`
+
+    A shared lock (_stdout_lock) is used to prevent interleaved output when multiple DUTs print simultaneously.
     """
     return _listener_gn(**locals())
 
