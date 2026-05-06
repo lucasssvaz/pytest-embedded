@@ -82,6 +82,10 @@ class Wokwi(DuplicateStdoutPopen):
         # Upload files
         self.client.upload_file('diagram.json', Path(diagram))
         self.client.upload_file('pytest.elf', Path(elf_path))
+
+        # Upload custom chips if present
+        custom_chips = self._upload_custom_chips(Path(diagram).parent)
+
         if firmware_path.endswith('flasher_args.json'):
             firmware = self.client.upload_idf_firmware(firmware_path)
             kwargs = {'firmware': firmware.firmware, 'elf': 'pytest.elf', 'flash_size': firmware.flash_size}
@@ -89,8 +93,40 @@ class Wokwi(DuplicateStdoutPopen):
             firmware = self.client.upload_file('pytest.bin', Path(firmware_path))
             kwargs = {'firmware': firmware, 'elf': 'pytest.elf'}
 
+        if custom_chips:
+            kwargs['chips'] = custom_chips
+
         logging.info('Uploaded diagram and firmware to Wokwi. Starting simulation...')
         self.client.start_simulation(**kwargs)
+
+    def _upload_custom_chips(self, diagram_dir: Path) -> list:
+        """Upload custom chip files from the chips directory and return chip names."""
+        chips_dir = diagram_dir / 'chips'
+        if not chips_dir.is_dir():
+            return []
+
+        chip_names = []
+        for chip_json in chips_dir.glob('*.chip.json'):
+            chip_name = chip_json.name.removesuffix('.chip.json')
+
+            # Find binary file (.chip.wasm or .chip.bin)
+            chip_binary = None
+            for ext in ['.chip.wasm', '.chip.bin']:
+                candidate = chips_dir / (chip_name + ext)
+                if candidate.exists():
+                    chip_binary = candidate
+                    break
+
+            if chip_binary is None:
+                logging.warning('No binary file found for chip %s, skipping', chip_name)
+                continue
+
+            self.client.upload_file(chip_json.name, chip_json)
+            self.client.upload_file(chip_binary.name, chip_binary)
+            chip_names.append(chip_name)
+            logging.info('Uploaded custom chip: %s', chip_name)
+
+        return chip_names
 
     def _start_serial_monitoring(self):
         """Start monitoring serial output and forward to stdout and message queue."""
