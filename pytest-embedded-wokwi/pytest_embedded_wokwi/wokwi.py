@@ -85,12 +85,13 @@ class Wokwi(DuplicateStdoutPopen):
         hello = self.client.connect()
         logging.info('Connected to Wokwi Simulator, server version: %s', hello.get('version', 'unknown'))
 
-        # Upload files
+        # Upload custom chips before diagram so the server can resolve chip
+        # references in the diagram at upload time.
+        custom_chips = self._upload_custom_chips(Path(diagram).parent)
+
+        # Upload diagram and ELF
         self.client.upload_file('diagram.json', Path(diagram))
         self.client.upload_file('pytest.elf', Path(elf_path))
-
-        # Upload custom chips if present
-        custom_chips = self._upload_custom_chips(Path(diagram).parent)
 
         if firmware_path.endswith('flasher_args.json'):
             firmware = self.client.upload_idf_firmware(firmware_path)
@@ -110,13 +111,13 @@ class Wokwi(DuplicateStdoutPopen):
 
         Reads chip definitions from ``wokwi.toml`` if present in *diagram_dir*.
         Each ``[[chip]]`` entry must supply a ``name`` and a ``binary`` path
-        (relative to *diagram_dir*).  When ``wokwi.toml`` is absent or contains
-        no chip entries the method falls back to scanning a ``chips/``
-        sub-directory for ``*.chip.json`` / ``*.chip.wasm`` pairs.
+        (relative to the ``wokwi.toml`` file).  When ``wokwi.toml`` is absent
+        or contains no chip entries the method falls back to scanning a
+        ``chips/`` sub-directory for ``*.chip.json`` / ``*.chip.wasm`` pairs.
         """
         toml_path = diagram_dir / 'wokwi.toml'
         if toml_path.is_file():
-            chip_specs = self._chip_specs_from_toml(toml_path, diagram_dir)
+            chip_specs = self._chip_specs_from_toml(toml_path)
             if chip_specs is not None:
                 return self._upload_chip_specs(chip_specs)
 
@@ -124,13 +125,19 @@ class Wokwi(DuplicateStdoutPopen):
         return self._upload_chip_specs(self._chip_specs_from_dir(diagram_dir))
 
     def _chip_specs_from_toml(
-        self, toml_path: Path, base_dir: Path
+        self, toml_path: Path
     ) -> list[tuple[Path, Path, str]] | None:
         """Parse ``[[chip]]`` entries from *toml_path*.
+
+        All relative paths in the ``[[chip]]`` entries are resolved relative to
+        the directory containing *toml_path* (i.e. the sketch directory where
+        ``wokwi.toml`` lives), which matches the convention used by the
+        ``generate_wokwi_toml`` script.
 
         Returns a list of ``(json_path, binary_path, chip_name)`` tuples, or
         ``None`` if the file cannot be parsed or contains no chip entries.
         """
+        base_dir = toml_path.parent
         try:
             with open(toml_path, 'rb') as f:
                 data = tomllib.load(f)
