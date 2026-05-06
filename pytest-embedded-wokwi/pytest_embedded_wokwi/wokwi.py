@@ -141,7 +141,7 @@ class Wokwi(DuplicateStdoutPopen):
         try:
             with open(toml_path, 'rb') as f:
                 data = tomllib.load(f)
-        except Exception as e:
+        except (OSError, tomllib.TOMLDecodeError) as e:
             logging.warning('Could not parse wokwi.toml: %s', e)
             return None
 
@@ -202,14 +202,22 @@ class Wokwi(DuplicateStdoutPopen):
     def _upload_chip_specs(self, specs: list[tuple[Path, Path, str]]) -> list[str]:
         """Upload chip files described by *specs* and return the chip names.
 
-        Both the JSON definition file and the binary are uploaded using their
-        original filenames.  The Wokwi server derives the binary to load from
-        the chip name by convention (``<chip_name>.chip.wasm``), so the binary
-        must be uploaded under its original name.
+        The Wokwi server requires chip JSON files to be uploaded via the
+        ``text`` field of the ``file:upload`` command (not base64-encoded
+        binary), matching the behaviour of the official ``wokwi-cli`` TypeScript
+        client.  The wokwi-python-client public API only supports binary
+        uploads, so we send the JSON via the transport's ``request`` method
+        directly.  The binary (``.chip.wasm``) is uploaded normally under its
+        original filename.
         """
         chip_names = []
         for json_path, binary_path, chip_name in specs:
-            self.client.upload_file(json_path.name, json_path)
+            # Send chip JSON as text (server rejects binary-encoded chip JSON).
+            self.client._call(
+                self.client._async_client._transport.request(
+                    'file:upload', {'name': json_path.name, 'text': json_path.read_text(encoding='utf-8')}
+                )
+            )
             self.client.upload_file(binary_path.name, binary_path)
             chip_names.append(chip_name)
             logging.info('Uploaded custom chip: %s', chip_name)
