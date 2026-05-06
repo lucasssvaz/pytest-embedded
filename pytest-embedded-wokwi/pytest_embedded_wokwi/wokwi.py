@@ -193,11 +193,16 @@ class Wokwi(DuplicateStdoutPopen):
         return specs
 
     def _upload_chip_specs(self, specs: list[tuple[Path, Path, str]]) -> list[str]:
-        """Upload chip files described by *specs* and return the chip names."""
+        """Upload chip files described by *specs* and return the chip names.
+
+        The Wokwi API requires the binary to be uploaded under the remote name
+        ``<chip_name>.chip.bin`` regardless of the local file extension (e.g.
+        ``.chip.wasm``).  The JSON definition file is uploaded unchanged.
+        """
         chip_names = []
         for json_path, binary_path, chip_name in specs:
             self.client.upload_file(json_path.name, json_path)
-            self.client.upload_file(binary_path.name, binary_path)
+            self.client.upload_file(chip_name + '.chip.bin', binary_path)
             chip_names.append(chip_name)
             logging.info('Uploaded custom chip: %s', chip_name)
         return chip_names
