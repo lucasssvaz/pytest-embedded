@@ -1,8 +1,14 @@
 import json
 import logging
 import os
+import sys
 import typing as t
 from pathlib import Path
+
+if sys.version_info >= (3, 11):
+    import tomllib
+else:
+    import tomli as tomllib  # type: ignore[no-redef]
 
 from pytest_embedded.log import DuplicateStdoutPopen, MessageQueue
 from pytest_embedded.utils import Meta
@@ -100,16 +106,75 @@ class Wokwi(DuplicateStdoutPopen):
         self.client.start_simulation(**kwargs)
 
     def _upload_custom_chips(self, diagram_dir: Path) -> list:
-        """Upload custom chip files from the chips directory and return chip names."""
+        """Upload custom chip files and return chip names.
+
+        Reads chip definitions from ``wokwi.toml`` if present in *diagram_dir*.
+        Each ``[[chip]]`` entry must supply a ``name`` and a ``binary`` path
+        (relative to *diagram_dir*).  When ``wokwi.toml`` is absent or contains
+        no chip entries the method falls back to scanning a ``chips/``
+        sub-directory for ``*.chip.json`` / ``*.chip.wasm`` pairs.
+        """
+        toml_path = diagram_dir / 'wokwi.toml'
+        if toml_path.is_file():
+            chip_specs = self._chip_specs_from_toml(toml_path, diagram_dir)
+            if chip_specs is not None:
+                return self._upload_chip_specs(chip_specs)
+
+        # Fallback: auto-detect from chips/ directory
+        return self._upload_chip_specs(self._chip_specs_from_dir(diagram_dir))
+
+    def _chip_specs_from_toml(self, toml_path: Path, base_dir: Path) -> list | None:
+        """Parse ``[[chip]]`` entries from *toml_path*.
+
+        Returns a list of ``(json_path, binary_path, chip_name)`` tuples, or
+        ``None`` if the file cannot be parsed or contains no chip entries.
+        """
+        try:
+            with open(toml_path, 'rb') as f:
+                data = tomllib.load(f)
+        except Exception as e:
+            logging.warning('Could not parse wokwi.toml: %s', e)
+            return None
+
+        chip_entries = data.get('chip', [])
+        if not chip_entries:
+            return None
+
+        specs = []
+        for entry in chip_entries:
+            name = entry.get('name')
+            binary_rel = entry.get('binary')
+            if not name or not binary_rel:
+                logging.warning('Skipping chip entry missing name or binary: %s', entry)
+                continue
+
+            binary_path = (base_dir / binary_rel).resolve()
+            json_path = binary_path.parent / (name + '.chip.json')
+
+            if not binary_path.exists():
+                logging.warning('Chip binary not found: %s', binary_path)
+                continue
+            if not json_path.exists():
+                logging.warning('Chip JSON not found: %s', json_path)
+                continue
+
+            specs.append((json_path, binary_path, name))
+
+        return specs if specs else None
+
+    def _chip_specs_from_dir(self, diagram_dir: Path) -> list:
+        """Auto-detect chip specs by scanning ``chips/`` under *diagram_dir*.
+
+        Returns a list of ``(json_path, binary_path, chip_name)`` tuples.
+        """
         chips_dir = diagram_dir / 'chips'
         if not chips_dir.is_dir():
             return []
 
-        chip_names = []
+        specs = []
         for chip_json in chips_dir.glob('*.chip.json'):
             chip_name = chip_json.name.removesuffix('.chip.json')
 
-            # Find binary file (.chip.wasm or .chip.bin)
             chip_binary = None
             for ext in ['.chip.wasm', '.chip.bin']:
                 candidate = chips_dir / (chip_name + ext)
@@ -121,11 +186,18 @@ class Wokwi(DuplicateStdoutPopen):
                 logging.warning('No binary file found for chip %s, skipping', chip_name)
                 continue
 
-            self.client.upload_file(chip_json.name, chip_json)
-            self.client.upload_file(chip_binary.name, chip_binary)
+            specs.append((chip_json, chip_binary, chip_name))
+
+        return specs
+
+    def _upload_chip_specs(self, specs: list) -> list:
+        """Upload chip files described by *specs* and return the chip names."""
+        chip_names = []
+        for json_path, binary_path, chip_name in specs:
+            self.client.upload_file(json_path.name, json_path)
+            self.client.upload_file(binary_path.name, binary_path)
             chip_names.append(chip_name)
             logging.info('Uploaded custom chip: %s', chip_name)
-
         return chip_names
 
     def _start_serial_monitoring(self):
