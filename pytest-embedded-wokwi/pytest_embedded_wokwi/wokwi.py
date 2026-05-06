@@ -105,7 +105,7 @@ class Wokwi(DuplicateStdoutPopen):
         logging.info('Uploaded diagram and firmware to Wokwi. Starting simulation...')
         self.client.start_simulation(**kwargs)
 
-    def _upload_custom_chips(self, diagram_dir: Path) -> list:
+    def _upload_custom_chips(self, diagram_dir: Path) -> list[str]:
         """Upload custom chip files and return chip names.
 
         Reads chip definitions from ``wokwi.toml`` if present in *diagram_dir*.
@@ -123,7 +123,9 @@ class Wokwi(DuplicateStdoutPopen):
         # Fallback: auto-detect from chips/ directory
         return self._upload_chip_specs(self._chip_specs_from_dir(diagram_dir))
 
-    def _chip_specs_from_toml(self, toml_path: Path, base_dir: Path) -> list | None:
+    def _chip_specs_from_toml(
+        self, toml_path: Path, base_dir: Path
+    ) -> list[tuple[Path, Path, str]] | None:
         """Parse ``[[chip]]`` entries from *toml_path*.
 
         Returns a list of ``(json_path, binary_path, chip_name)`` tuples, or
@@ -140,7 +142,7 @@ class Wokwi(DuplicateStdoutPopen):
         if not chip_entries:
             return None
 
-        specs = []
+        specs: list[tuple[Path, Path, str]] = []
         for entry in chip_entries:
             name = entry.get('name')
             binary_rel = entry.get('binary')
@@ -162,7 +164,7 @@ class Wokwi(DuplicateStdoutPopen):
 
         return specs if specs else None
 
-    def _chip_specs_from_dir(self, diagram_dir: Path) -> list:
+    def _chip_specs_from_dir(self, diagram_dir: Path) -> list[tuple[Path, Path, str]]:
         """Auto-detect chip specs by scanning ``chips/`` under *diagram_dir*.
 
         Returns a list of ``(json_path, binary_path, chip_name)`` tuples.
@@ -171,7 +173,7 @@ class Wokwi(DuplicateStdoutPopen):
         if not chips_dir.is_dir():
             return []
 
-        specs = []
+        specs: list[tuple[Path, Path, str]] = []
         for chip_json in chips_dir.glob('*.chip.json'):
             chip_name = chip_json.name.removesuffix('.chip.json')
 
@@ -190,7 +192,7 @@ class Wokwi(DuplicateStdoutPopen):
 
         return specs
 
-    def _upload_chip_specs(self, specs: list) -> list:
+    def _upload_chip_specs(self, specs: list[tuple[Path, Path, str]]) -> list[str]:
         """Upload chip files described by *specs* and return the chip names."""
         chip_names = []
         for json_path, binary_path, chip_name in specs:
